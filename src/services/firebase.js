@@ -1,11 +1,9 @@
-// Import the functions you need from the SDKs you need
+// src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth, signInAnonymously } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDDn0scNPa0ShKCzal-LA__jnJvJXu2Hhc",
   authDomain: "la-reserva-ad06d.firebaseapp.com",
@@ -13,11 +11,19 @@ const firebaseConfig = {
   storageBucket: "la-reserva-ad06d.firebasestorage.app",
   messagingSenderId: "442213613501",
   appId: "1:442213613501:web:b4276ad3174f11513e5cd4",
-  measurementId: "G-D4GYRPK8PQ"
+  measurementId: "G-D4GYRPK8PQ",
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
-export { app, analytics };
+// Analytics funciona en https/localhost; envolvemos en try/catch para evitar errores en dev
+let analytics;
+try { analytics = getAnalytics(app); } catch (_) {}
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// login anónimo para que las reglas request.auth != null se cumplan
+signInAnonymously(auth).catch((e) => console.error("Auth anónima falló:", e));
+
+export { app, analytics, auth, db };

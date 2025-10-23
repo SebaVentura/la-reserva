@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { testFirebaseConnection } from "./firabasetest";
+import { guardarAporte } from "./services/aportes";
 
 import AdminExport from "./components/AdminReport";
 import {
@@ -298,52 +299,84 @@ function GuiaReciclaje() {
     </section>
   );
 }
-
 function AportesForm() {
-  const [vecino, setVecino] = useState("");
-  const [notas, setNotas] = useState("");
-  const [items, setItems] = useState(
-    MATERIALES.map((m) => ({ materialId: m.id, cantidad: 0, limpio: true }))
-  );
-  const [sugerencias, setSugerencias] = useState([]);
+  // ===== Estado unificado del aporte =====
+  const EMPTY_MATERIALES = MATERIALES.map(m => ({
+    materialId: m.id,
+    cantidad: 0,
+    unidad: "kg/unidad",
+    limpio: true,
+    humedo: false,
+    roto: false,
+  }));
 
+  const [aporte, setAporte] = useState({
+    alias: "",          // "Calle / Manzana / Alias" (opcional)
+    direccion: "",      // si querés separar alias/dirección
+    notas: "",
+    observaciones: "",
+    items: EMPTY_MATERIALES,
+  });
+
+  const [sugerencias, setSugerencias] = useState([]);
   const aportes = load(LS_KEYS.aportes, []);
 
-  function updateItem(id, patch) {
-    setItems((prev) =>
-      prev.map((it) => (it.materialId === id ? { ...it, ...patch } : it))
-    );
-  }
+  // ===== Helpers =====
+  const updateAporte = (patch) =>
+    setAporte(a => ({ ...a, ...patch }));
 
+  const updateMaterial = (materialId, patch) =>
+    setAporte(a => ({
+      ...a,
+      items: a.items.map(it =>
+        it.materialId === materialId ? { ...it, ...patch } : it
+      ),
+    }));
+
+  // ===== Acciones =====
   function handlePrevisualizar() {
     const fake = {
+      ...aporte,
       id: crypto.randomUUID(),
-      vecino: vecino || "(anónimo)",
       fecha: new Date().toISOString(),
-      items: items.filter((i) => i.cantidad > 0),
-      notas,
+      items: aporte.items.filter(i => i.cantidad > 0),
     };
     setSugerencias(sugerenciasEducativas(fake));
   }
 
-  function handleGuardar() {
-    const aporte = {
-      id: crypto.randomUUID(),
-      vecino: vecino || "(anónimo)",
-      fecha: new Date().toISOString(),
-      items: items.filter((i) => i.cantidad > 0),
-      notas,
-    };
-    const next = [...aportes, aporte];
-    save(LS_KEYS.aportes, next);
-    setVecino("");
-    setNotas("");
-    setItems(
-      MATERIALES.map((m) => ({ materialId: m.id, cantidad: 0, limpio: true }))
-    );
+  // dentro de AportesForm, reemplazá handleGuardar por este:
+async function handleGuardar() {
+  // armamos objeto desde el state unificado
+  const toSave = {
+    ...aporte,
+    // items ya está en aporte.items; filtramos en el servicio
+  };
+
+  try {
+    const id = await guardarAporte(toSave);
+    // reset UI
+    setAporte({
+      alias: "",
+      direccion: "",
+      notas: "",
+      observaciones: "",
+      items: MATERIALES.map(m => ({
+        materialId: m.id,
+        cantidad: 0,
+        unidad: "kg/unidad",
+        limpio: true,
+        humedo: false,
+        roto: false,
+      })),
+    });
     setSugerencias([]);
-    alert("¡Gracias! Tu aporte fue registrado (a nivel comunitario).");
+    alert(`¡Gracias! Aporte guardado en Firebase. ID: ${id}`);
+  } catch (err) {
+    console.error(err);
+    alert("❌ No se pudo guardar en Firebase. Revisá consola y reglas.");
   }
+}
+
 
   return (
     <section className="py-10">
@@ -352,52 +385,60 @@ function AportesForm() {
         Indicá cantidades aproximadas (kg o unidades). Los datos serán usados para estadísticas comunitarias.
       </p>
 
+      {/* === Grid de materiales === */}
       <div className="grid md:grid-cols-3 gap-4">
         {MATERIALES.map((m) => {
-          const it = items.find((x) => x.materialId === m.id) || {
-            materialId: m.id,
-            cantidad: 0,
-            limpio: true,
-          };
+const it = aporte.items.find(x => x.materialId === m.id) || {
+  materialId: m.id,
+  cantidad: 0,
+  unidad: "kg/unidad",
+  limpio: true,
+  humedo: false,
+  roto: false,
+};
           return (
             <div key={m.id} className="rounded-2xl border bg-white p-4 space-y-3">
               <div className="font-medium">{m.nombre}</div>
+
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min={0}
-                  value={it.cantidad || 0}
+                  value={it.cantidad}
                   onChange={(e) =>
-                    updateItem(m.id, { cantidad: Number(e.target.value || 0) })
+                    updateMaterial(m.id, { cantidad: Number(e.target.value || 0) })
                   }
                   className="w-24 rounded-lg border px-2 py-1"
                 />
                 <span className="text-sm text-slate-500">kg/unid</span>
               </div>
+
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={!!it.limpio}
-                  onChange={(e) => updateItem(m.id, { limpio: e.target.checked })}
+                  checked={it.limpio}
+                  onChange={(e) => updateMaterial(m.id, { limpio: e.target.checked })}
                 />
                 Limpio
               </label>
+
               {m.id === "carton" && (
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={!!it.humedo}
-                    onChange={(e) => updateItem(m.id, { humedo: e.target.checked })}
+                    checked={it.humedo}
+                    onChange={(e) => updateMaterial(m.id, { humedo: e.target.checked })}
                   />
                   ¿Húmedo?
                 </label>
               )}
+
               {m.id === "vidrio" && (
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={!!it.roto}
-                    onChange={(e) => updateItem(m.id, { roto: e.target.checked })}
+                    checked={it.roto}
+                    onChange={(e) => updateMaterial(m.id, { roto: e.target.checked })}
                   />
                   ¿Roto?
                 </label>
@@ -407,21 +448,23 @@ function AportesForm() {
         })}
       </div>
 
+      {/* === Datos del aporte === */}
       <div className="mt-6 grid md:grid-cols-2 gap-4">
         <div className="rounded-2xl border bg-white p-4">
           <label className="text-sm font-medium">Alias (opcional)</label>
           <input
-            value={vecino}
-            onChange={(e) => setVecino(e.target.value)}
+            value={aporte.alias}
+            onChange={(e) => updateAporte({ alias: e.target.value })}
             className="mt-1 w-full rounded-lg border px-3 py-2"
             placeholder="Calle / Manzana / Alias"
           />
         </div>
+
         <div className="rounded-2xl border bg-white p-4">
           <label className="text-sm font-medium">Notas</label>
           <textarea
-            value={notas}
-            onChange={(e) => setNotas(e.target.value)}
+            value={aporte.notas}
+            onChange={(e) => updateAporte({ notas: e.target.value })}
             className="mt-1 w-full rounded-lg border px-3 py-2"
             rows={3}
             placeholder="Observaciones breves"
@@ -429,6 +472,7 @@ function AportesForm() {
         </div>
       </div>
 
+      {/* === Acciones === */}
       <div className="flex flex-wrap gap-3 mt-5">
         <button
           onClick={handlePrevisualizar}
@@ -444,6 +488,7 @@ function AportesForm() {
         </button>
       </div>
 
+      {/* === Sugerencias === */}
       {sugerencias.length > 0 && (
         <div className="mt-6 rounded-2xl border bg-white p-4">
           <div className="font-medium mb-2">Sugerencias educativas</div>
@@ -457,18 +502,6 @@ function AportesForm() {
     </section>
   );
 }
-
-function Recordatorios() {
-  const [fecha, setFecha] = useState("");
-  const [hora, setHora] = useState("");
-  const [mensaje, setMensaje] = useState("¡Recordá preparar tus reciclables!");
-  const [actual, setActual] = useState(null);
-
-  useEffect(() => {
-    const r = load(LS_KEYS.recordatorios, null);
-    setActual(r);
-  }, []);
-
   function guardar() {
     if (!fecha || !hora) {
       alert("Completá fecha y hora");
@@ -481,7 +514,7 @@ function Recordatorios() {
     setFecha("");
     setHora("");
     alert("Recordatorio programado (local, demostración)");
-  }
+  
 
   return (
     <section className="py-10">
@@ -534,7 +567,7 @@ function Recordatorios() {
       )}
     </section>
   );
-}
+
 
 function ComunidadDashboard() {
   const aportes = load(LS_KEYS.aportes, []);
@@ -685,4 +718,4 @@ function mensajeDifusion(porcentaje) {
   if (porcentaje < 20)
     return "Bien, pero hay oportunidades: revisar humedad en cartones y restos en envases.";
   return "Atención: necesitamos reforzar la separación. Leé la guía y prepará tus reciclables limpios y secos.";
-}
+}}
