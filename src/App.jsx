@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { testFirebaseConnection } from "./firabasetest";
+
 import AdminExport from "./components/AdminReport";
 import {
   Recycle,
@@ -21,6 +23,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
 
 // ======= CONFIGURACIÓN Y DATOS BASE ======= //
 const MATERIALES = [
@@ -140,6 +143,10 @@ function sugerenciasEducativas(aporte) {
 
 // ======= APP ======= //
 export default function App() {
+  useEffect(() => {
+    testFirebaseConnection();
+  }, []);
+
   const [tab, setTab] = useState("inicio");
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white text-slate-800">
