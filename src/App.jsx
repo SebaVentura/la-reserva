@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { testFirebaseConnection } from "./firabasetest";
-import { guardarAporte } from "./services/aportes";
-
+import AportesForm from "./components/Aportes";
 import AdminExport from "./components/AdminReport";
 import {
   Recycle,
@@ -12,7 +11,6 @@ import {
   Users,
   MessageSquareText,
   Settings,
-  FolderDown,
 } from "lucide-react";
 import {
   Bar,
@@ -24,7 +22,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
 
 // ======= CONFIGURACIÓN Y DATOS BASE ======= //
 const MATERIALES = [
@@ -95,7 +92,7 @@ function load(key, fallback) {
   }
 }
 
-// Exportación CSV simple para Taller UNO
+// Exportación CSV simple (por si la usás luego)
 function exportCSV(nombre, rows) {
   const headers = Array.from(
     rows.reduce((set, row) => {
@@ -103,7 +100,7 @@ function exportCSV(nombre, rows) {
       return set;
     }, new Set())
   );
-  const csv = [headers.join(",")]
+  const csv = [headers.join(",")] 
     .concat(
       rows.map((r) =>
         headers
@@ -125,7 +122,7 @@ function exportCSV(nombre, rows) {
   URL.revokeObjectURL(url);
 }
 
-// Sugerencias educativas automáticas (motor muy simple estilo "IA offline")
+// Sugerencias educativas automáticas (motor simple "IA offline")
 function sugerenciasEducativas(aporte) {
   const tips = [];
   for (const item of aporte.items) {
@@ -299,209 +296,13 @@ function GuiaReciclaje() {
     </section>
   );
 }
-function AportesForm() {
-  // ===== Estado unificado del aporte =====
-  const EMPTY_MATERIALES = MATERIALES.map(m => ({
-    materialId: m.id,
-    cantidad: 0,
-    unidad: "kg/unidad",
-    limpio: true,
-    humedo: false,
-    roto: false,
-  }));
 
-  const [aporte, setAporte] = useState({
-    alias: "",          // "Calle / Manzana / Alias" (opcional)
-    direccion: "",      // si querés separar alias/dirección
-    notas: "",
-    observaciones: "",
-    items: EMPTY_MATERIALES,
-  });
+function Recordatorios() {
+  const [fecha, setFecha] = useState("");
+  const [hora, setHora] = useState("");
+  const [mensaje, setMensaje] = useState("¡Sale recolección! Prepará tus reciclables limpios y secos.");
+  const [actual, setActual] = useState(load(LS_KEYS.recordatorios, null));
 
-  const [sugerencias, setSugerencias] = useState([]);
-  const aportes = load(LS_KEYS.aportes, []);
-
-  // ===== Helpers =====
-  const updateAporte = (patch) =>
-    setAporte(a => ({ ...a, ...patch }));
-
-  const updateMaterial = (materialId, patch) =>
-    setAporte(a => ({
-      ...a,
-      items: a.items.map(it =>
-        it.materialId === materialId ? { ...it, ...patch } : it
-      ),
-    }));
-
-  // ===== Acciones =====
-  function handlePrevisualizar() {
-    const fake = {
-      ...aporte,
-      id: crypto.randomUUID(),
-      fecha: new Date().toISOString(),
-      items: aporte.items.filter(i => i.cantidad > 0),
-    };
-    setSugerencias(sugerenciasEducativas(fake));
-  }
-
-  // dentro de AportesForm, reemplazá handleGuardar por este:
-async function handleGuardar() {
-  // armamos objeto desde el state unificado
-  const toSave = {
-    ...aporte,
-    // items ya está en aporte.items; filtramos en el servicio
-  };
-
-  try {
-    const id = await guardarAporte(toSave);
-    // reset UI
-    setAporte({
-      alias: "",
-      direccion: "",
-      notas: "",
-      observaciones: "",
-      items: MATERIALES.map(m => ({
-        materialId: m.id,
-        cantidad: 0,
-        unidad: "kg/unidad",
-        limpio: true,
-        humedo: false,
-        roto: false,
-      })),
-    });
-    setSugerencias([]);
-    alert(`¡Gracias! Aporte guardado en Firebase. ID: ${id}`);
-  } catch (err) {
-    console.error(err);
-    alert("❌ No se pudo guardar en Firebase. Revisá consola y reglas.");
-  }
-}
-
-
-  return (
-    <section className="py-10">
-      <h2 className="text-xl font-bold mb-2">Cargar aporte vecinal</h2>
-      <p className="text-sm text-slate-600 mb-4">
-        Indicá cantidades aproximadas (kg o unidades). Los datos serán usados para estadísticas comunitarias.
-      </p>
-
-      {/* === Grid de materiales === */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {MATERIALES.map((m) => {
-const it = aporte.items.find(x => x.materialId === m.id) || {
-  materialId: m.id,
-  cantidad: 0,
-  unidad: "kg/unidad",
-  limpio: true,
-  humedo: false,
-  roto: false,
-};
-          return (
-            <div key={m.id} className="rounded-2xl border bg-white p-4 space-y-3">
-              <div className="font-medium">{m.nombre}</div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  value={it.cantidad}
-                  onChange={(e) =>
-                    updateMaterial(m.id, { cantidad: Number(e.target.value || 0) })
-                  }
-                  className="w-24 rounded-lg border px-2 py-1"
-                />
-                <span className="text-sm text-slate-500">kg/unid</span>
-              </div>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={it.limpio}
-                  onChange={(e) => updateMaterial(m.id, { limpio: e.target.checked })}
-                />
-                Limpio
-              </label>
-
-              {m.id === "carton" && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={it.humedo}
-                    onChange={(e) => updateMaterial(m.id, { humedo: e.target.checked })}
-                  />
-                  ¿Húmedo?
-                </label>
-              )}
-
-              {m.id === "vidrio" && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={it.roto}
-                    onChange={(e) => updateMaterial(m.id, { roto: e.target.checked })}
-                  />
-                  ¿Roto?
-                </label>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* === Datos del aporte === */}
-      <div className="mt-6 grid md:grid-cols-2 gap-4">
-        <div className="rounded-2xl border bg-white p-4">
-          <label className="text-sm font-medium">Alias (opcional)</label>
-          <input
-            value={aporte.alias}
-            onChange={(e) => updateAporte({ alias: e.target.value })}
-            className="mt-1 w-full rounded-lg border px-3 py-2"
-            placeholder="Calle / Manzana / Alias"
-          />
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4">
-          <label className="text-sm font-medium">Notas</label>
-          <textarea
-            value={aporte.notas}
-            onChange={(e) => updateAporte({ notas: e.target.value })}
-            className="mt-1 w-full rounded-lg border px-3 py-2"
-            rows={3}
-            placeholder="Observaciones breves"
-          />
-        </div>
-      </div>
-
-      {/* === Acciones === */}
-      <div className="flex flex-wrap gap-3 mt-5">
-        <button
-          onClick={handlePrevisualizar}
-          className="px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200"
-        >
-          Previsualizar sugerencias
-        </button>
-        <button
-          onClick={handleGuardar}
-          className="px-4 py-2 rounded-xl bg-emerald-600 text-white"
-        >
-          Guardar aporte
-        </button>
-      </div>
-
-      {/* === Sugerencias === */}
-      {sugerencias.length > 0 && (
-        <div className="mt-6 rounded-2xl border bg-white p-4">
-          <div className="font-medium mb-2">Sugerencias educativas</div>
-          <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-            {sugerencias.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
-  );
-}
   function guardar() {
     if (!fecha || !hora) {
       alert("Completá fecha y hora");
@@ -514,7 +315,7 @@ const it = aporte.items.find(x => x.materialId === m.id) || {
     setFecha("");
     setHora("");
     alert("Recordatorio programado (local, demostración)");
-  
+  }
 
   return (
     <section className="py-10">
@@ -567,7 +368,7 @@ const it = aporte.items.find(x => x.materialId === m.id) || {
       )}
     </section>
   );
-
+}
 
 function ComunidadDashboard() {
   const aportes = load(LS_KEYS.aportes, []);
@@ -718,4 +519,4 @@ function mensajeDifusion(porcentaje) {
   if (porcentaje < 20)
     return "Bien, pero hay oportunidades: revisar humedad en cartones y restos en envases.";
   return "Atención: necesitamos reforzar la separación. Leé la guía y prepará tus reciclables limpios y secos.";
-}}
+}
