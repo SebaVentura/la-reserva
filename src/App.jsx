@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { testFirebaseConnection } from "./firabasetest";
 import AportesForm from "./components/Aportes";
 import AdminExport from "./components/AdminReport";
+import ProcesamientoImagenes from "./components/ProcesamientoImage/Procesamiento";
 import {
   Recycle,
   Bell,
@@ -155,6 +156,7 @@ export default function App() {
         {tab === "aportes" && <AportesForm />}
         {tab === "recordatorios" && <Recordatorios />}
         {tab === "comunidad" && <ComunidadDashboard />}
+        {tab === "Imagenes" && <ProcesamientoImagenes />}
         {tab === "reportes" && <ReportesSemanales />}
         {tab === "admin" && <AdminExport />}
       </main>
