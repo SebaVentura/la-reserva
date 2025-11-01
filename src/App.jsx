@@ -156,7 +156,7 @@ export default function App() {
         {tab === "aportes" && <AportesForm />}
         {tab === "recordatorios" && <Recordatorios />}
         {tab === "comunidad" && <ComunidadDashboard />}
-        {tab === "Imagenes" && <ProcesamientoImagenes />}
+        {tab === "procesamiento" && <ProcesamientoImagenes />}
         {tab === "reportes" && <ReportesSemanales />}
         {tab === "admin" && <AdminExport />}
       </main>
@@ -173,6 +173,8 @@ function Header({ tab, onChangeTab }) {
     { key: "recordatorios", label: "Recordatorios", icon: <Bell className="w-4 h-4" /> },
     { key: "comunidad", label: "Comunidad", icon: <Users className="w-4 h-4" /> },
     { key: "reportes", label: "Reportes", icon: <ChartBar className="w-4 h-4" /> },
+    { key: "procesamiento", label: "Procesamiento", icon: <MessageSquareText className="w-4 h-4" /> },
+
     { key: "admin", label: "Admin", icon: <Settings className="w-4 h-4" /> },
   ];
   return (
