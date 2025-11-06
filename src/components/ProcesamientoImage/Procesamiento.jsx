@@ -3,11 +3,13 @@ import { Upload, Image as ImageIcon, Loader2 } from "lucide-react";
 import * as tf from "@tensorflow/tfjs";
 
 // 👇 Orden EXACTO de las clases en Teachable Machine
-const CLASS_IDS = ["Aluminio", "Otro"];
+const CLASS_IDS = ["Aluminio", "Carton", "Vidrio", "Otros"];
 
 const NOMBRES_MATERIALES = {
   Aluminio: "Aluminio",
-  Otro: "Otro / No aluminio",
+  Carton: "Cartón",
+  Vidrio: "Vidrio",
+  Otros: "Otro / No reciclable",
   desconocido: "No reconocido",
 };
 
@@ -30,10 +32,9 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
 
         console.log("Intentando cargar modelo desde:", MODEL_URL);
 
-        // Teachable Machine (image project web) → LayersModel
         const m = await tf.loadLayersModel(MODEL_URL);
         setModelo(m);
-        console.log("✅ Modelo cargado", m);
+        console.log("✅ Modelo cargado correctamente:", m);
       } catch (err) {
         console.error("Error cargando modelo:", err);
         setError(
@@ -55,26 +56,23 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
     }
   }
 
+  // ⬇️ ESTA ES LA PARTE CORREGIDA
   async function procesarImagen() {
     if (!imagen) return alert("Subí una imagen primero");
-    if (!modelo) {
-      return alert("El modelo de IA no está listo todavía.");
-    }
+    if (!modelo) return alert("El modelo de IA no está listo todavía.");
 
     setProcesando(true);
     setResultado(null);
     setError("");
 
     try {
-      // Darle un toque para que la imagen se pinte en el DOM
+      // esperamos un toque para que la imagen se pinte en el DOM
       await new Promise((r) => setTimeout(r, 50));
 
       const imgEl = imgRef.current;
-      if (!imgEl) {
-        throw new Error("No se encontró el elemento de imagen");
-      }
+      if (!imgEl) throw new Error("No se encontró el elemento de imagen");
 
-      const IMAGE_SIZE = 224; // tamaño típico de Teachable Machine
+      const IMAGE_SIZE = 224;
 
       const input = tf.tidy(() => {
         return tf.browser
@@ -89,7 +87,7 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
       const data = await preds.data();
       tf.dispose([input, preds]);
 
-      console.log("📊 Predicciones crudas:", data); // ej. [0.85, 0.15]
+      console.log("📊 Predicciones crudas:", data); // ej. [0.7, 0.1, 0.15, 0.05]
 
       // Buscar la clase con mayor probabilidad
       let maxIdx = 0;
@@ -105,7 +103,7 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
       const confianza = Math.round(maxVal * 100);
 
       // Umbral: si la confianza es baja, marcamos como desconocido
-      const UMBRAL_CONF = 60; // podés ajustar
+      const UMBRAL_CONF = 80;
       if (confianza < UMBRAL_CONF) {
         materialId = "desconocido";
       }
@@ -118,8 +116,12 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
 
       setResultado(res);
 
-      // Avisar al padre solo si realmente detectó "Aluminio"
-      if (onMaterialDetectado && materialId === "Aluminio") {
+      // Solo autocompletamos el formulario si es uno de los 3 materiales reciclables
+      const materialesValidos = ["Aluminio", "Carton", "Vidrio"];
+      if (
+        onMaterialDetectado &&
+        materialesValidos.includes(materialId)
+      ) {
         onMaterialDetectado(res);
       }
     } catch (err) {
@@ -129,13 +131,15 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
       setProcesando(false);
     }
   }
+  // ⬆️ HASTA ACÁ LA PARTE IMPORTANTE
 
   return (
     <section className="py-10">
       <h2 className="text-xl font-bold mb-3">Procesamiento de imágenes con IA</h2>
       <p className="text-sm text-slate-600 mb-5">
-        Subí una foto de un material; el modelo trata de distinguir entre Aluminio y Otro
-        tipo de material. Podés corregir el resultado en el formulario.
+        Subí una foto de un material. El modelo trata de distinguir entre{" "}
+        <strong>Aluminio</strong>, <strong>Cartón</strong>, <strong>Vidrio</strong>{" "}
+        u <strong>Otros</strong>. Podés corregir el resultado en el formulario.
       </p>
 
       <div className="rounded-2xl border bg-white p-5 flex flex-col items-center gap-4">
@@ -144,12 +148,7 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
           <span className="text-sm font-medium text-emerald-800">
             Seleccionar imagen
           </span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFile}
-            className="hidden"
-          />
+          <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
         </label>
 
         {imagen && (
@@ -176,11 +175,7 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
           {cargandoModelo ? "Cargando modelo..." : "Procesar imagen"}
         </button>
 
-        {error && (
-          <div className="mt-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
+        {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
 
         {resultado && (
           <div className="mt-6 w-full md:w-2/3 rounded-2xl border bg-white p-4 text-sm text-slate-700">
@@ -191,8 +186,8 @@ export default function ProcesamientoImagenes({ onMaterialDetectado }) {
             </p>
             <p>Confianza: {resultado.confianza}%</p>
             <p className="mt-2 text-xs text-slate-500">
-              Este resultado es una ayuda automática. Revisá y corregí si no
-              coincide con el material real.
+              Este resultado es una ayuda automática. Revisá y corregí si no coincide
+              con el material real.
             </p>
           </div>
         )}
