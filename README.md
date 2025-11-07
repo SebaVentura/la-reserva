@@ -17,26 +17,6 @@ Estado local	useState / useEffect / localStorage
 •	☁️ Integración con Firebase: base de datos Firestore, almacenamiento de aportes y conexión futura con Storage.
 📂 
 
-
-Estructura de carpetas
-
-la-reserva/
-├── public/
-│   ├── modelo-materiales/
-│   │   ├── model.json
-│   │   ├── metadata.json
-│   │   └── weights.bin
-│   └── favicon.ico
-├── src/
-│   ├── components/
-│   ├── services/
-│   ├── App.jsx
-│   ├── main.jsx
-│   └── index.css
-├── package.json
-├── vite.config.js
-└── README.md
-
 ⚙️ Instalación y ejecución local
 1. Clonar el repositorio:
    git clone https://github.com/tuusuario/la-reserva.git
@@ -84,25 +64,6 @@ Local State: useState / useEffect / localStorage
 🧠 AI image processing: Material detection (Aluminum, Cardboard, Glass, Others) using TensorFlow.js.
 
 ☁️ Firebase integration: Firestore database, contribution storage, and future connection to Firebase Storage.
-Folder Structure
-
-la-reserva/
-├── public/
-│ ├── modelo-materiales/
-│ │ ├── model.json
-│ │ ├── metadata.json
-│ │ └── weights.bin
-│ └── favicon.ico
-├── src/
-│ ├── components/
-│ ├── services/
-│ ├── App.jsx
-│ ├── main.jsx
-│ └── index.css
-├── package.json
-├── git.config.js
-└── README.md
-
 ⚙️ Local Installation and Execution
 1. Clone the repository:
 
